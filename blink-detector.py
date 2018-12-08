@@ -85,7 +85,7 @@ def avancar_pagina(turtle_writer, text, start, stop, step):
 # main
 def main():
     #PDF LOAD
-    text = loadPDF('Chloe Marie-Versaofinal2.2.ultima.2(editado) (cópia).pdf')
+    text = loadPDF('') # Aqui você deve inserir o nome do pdf que deseja visualizar
     start = 0
     stop = 25
     step = 25

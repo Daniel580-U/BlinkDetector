@@ -30,7 +30,7 @@ turtle_writer.screen.screensize(900, 200)
 turtle_writer.screen.setworldcoordinates(-10,-90,450,7.5)
 
 #PDF LOAD
-text = loadPDF('aspectos.pdf')
+text = loadPDF('') # Aqui você deve inserir o nome do pdf que deseja visualizar
 start = 0
 stop = 25
 step = 25
