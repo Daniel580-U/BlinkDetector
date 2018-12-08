@@ -18,9 +18,11 @@ python3 blink-detector.py
 Os argumentos padrão abrem a câmera e detectam o piscar dos olhos no vídeo:
 ![demonstração](https://github.com/ItaloBruno/Detector-de-Piscadas/blob/master/demonstração.png)
 
-**Blink = Número de piscadas de quando a pessoa pisca ambos os olhos
-Right = Número de piscadas de quando a pessoa pisca apenas o olho direito
-Left  = Número de piscadas de quando a pessoa pisca apenas o olho esquerdo**
+**Blink = Número de piscadas de quando a pessoa pisca ambos os olhos**
+
+**Right = Número de piscadas de quando a pessoa pisca apenas o olho direito**
+
+**Left  = Número de piscadas de quando a pessoa pisca apenas o olho esquerdo**
 
 ```
 python detect_blinks.py -h
