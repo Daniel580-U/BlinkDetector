@@ -23,10 +23,21 @@ def get_next_part_of_text(string, start, stop):
     part = [string[start:stop], stop]
     return part
 
+
+def getProximoTexto(string,start,stop):
+   #aceita o PR que eu perdoo
+   part
+   for i in range(start,len(string)):
+       if string[i] != stop:
+           part += string[i]
+
+   return part
+
+
 #Configuracoes de tela
 turtle_writer = turtle.Turtle()
-turtle_writer.screen.setup(900,500)
-turtle_writer.screen.screensize(900, 200)
+turtle_writer.screen.setup(800,400)
+turtle_writer.screen.screensize(800, 100)
 turtle_writer.screen.setworldcoordinates(-10,-90,450,7.5)
 
 #PDF LOAD
@@ -37,8 +48,8 @@ step = 25
 
 #CONTROLADORADOS TEXTOS
 while(1):
-    command = int(input("1 to pass: "))
-    if command == 1:
+    command = int(input("2 to pass: "))
+    if command == 2:
         turtle_writer.screen.clearscreen()
         result = get_next_part_of_text(text, start, stop)
         start = result[1] + 1
@@ -47,16 +58,16 @@ while(1):
         print(start)
         print(stop)
         print(result)
-        turtle_writer.write(arg, move=False, align="left", font=("Arial", 20, "normal"))
+        turtle_writer.write(arg, move=False, align="left", font=("Arial", 18, "normal"))
         turtle_writer.hideturtle()
         
-        print( "deu bom")
+        print( "give good")
         command = 0
     elif command == 2:
         break
     else:
         command = 0
-    print("FIM DO LIVRO")
+    print("end of the book")
     turtle_writer.screen.setworldcoordinates(-10,-90,450,7.5)
 
 turtle.done()
