@@ -46,6 +46,10 @@ start = 0
 stop = 25
 step = 25
 
+def print_results(list):
+    for item in list:
+        print(item)
+
 #CONTROLADORADOS TEXTOS
 while(1):
     command = int(input("2 to pass: "))
@@ -55,9 +59,7 @@ while(1):
         start = result[1] + 1
         stop = start + step
         arg = result[0]
-        print(start)
-        print(stop)
-        print(result)
+        print_results([start, stop, arg])
         turtle_writer.write(arg, move=False, align="left", font=("Arial", 18, "normal"))
         turtle_writer.hideturtle()
         
