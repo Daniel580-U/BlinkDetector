@@ -10,6 +10,30 @@ import imutils
 import time
 import dlib
 import cv2
+from PyPDF2 import PdfReader
+import time
+
+def analyze_blink_state(blink_count: int, total_time: float, eye_closed_time: float) -> str:
+    """
+    Analiza el estado de la persona basándose en los parpadeos y el tiempo de ojos cerrados.
+    
+    :param blink_count: Número de parpadeos detectados en el período de observación.
+    :param total_time: Tiempo total de observación (en segundos).
+    :param eye_closed_time: Tiempo acumulado de los ojos cerrados durante el período (en segundos).
+    :return: Una cadena que indica el estado de la persona (por ejemplo, "Cansado", "Somnoliento", "Atento").
+    """
+    # Frecuencia de parpadeo (blinks por minuto)
+    blink_frequency = (blink_count / total_time) * 60
+    # Definir estados basados en frecuencia de parpadeo y tiempo con ojos cerrados
+    if blink_frequency < 10 and eye_closed_time > 0.15 * total_time:
+        return "Muy cansado o somnoliento"
+    elif blink_frequency < 15 and eye_closed_time > 0.10 * total_time:
+        return "Cansado"
+    elif blink_frequency >= 15 and eye_closed_time < 0.08 * total_time:
+        return "Atento"
+    else:
+        return "Estado ambiguo, observar más tiempo"
+
 
 def eye_aspect_ratio(eye):
     # compute the euclidean distances between the two sets of
@@ -45,18 +69,15 @@ def conf_tela():
 
 #carrega todo o texto do pdf em uma variável
 def loadPDF(nameFile: str):
-    pdfFileObj = open(nameFile, 'rb') 
 
-    pdfReader = PyPDF2.PdfFileReader(pdfFileObj) 
-    numpages = pdfReader.numPages
+    pdfReader = PdfReader(nameFile) 
     pdfText = ""
 
-    for page in range(1,numpages,1):
-        pageObj = pdfReader.getPage(page) 
-        page_string = pageObj.extractText()
-        pdfText = pdfText + page_string
-        
-    pdfFileObj.close() 
+     # Iterar sobre las páginas
+    for page in pdfReader.pages:
+        # Extraer texto de cada página y concatenarlo
+        pdfText += page.extract_text()
+    
     return pdfText
 
 #quebra a string para mostrar o text de parte em parte indo até o próximo ponto final
@@ -84,8 +105,8 @@ def avancar_pagina(turtle_writer, text, start, stop, step):
 
 # main
 def main():
-    #PDF LOAD
-    text = loadPDF('') # Aqui você deve inserir o nome do pdf que deseja visualizar
+    #PDF
+    text = loadPDF('pdf.pdf') # Aqui você deve inserir o nome do pdf que deseja visualizar
     start = 0
     stop = 25
     step = 25
@@ -125,7 +146,11 @@ def main():
         fileStream = True
     
     time.sleep(1.0)
-    
+
+    rostros = [0]
+    eye_closed_time = [0]
+    frames_with_closed_eyes = [0]
+    start_time = time.time()
     # loop over frames from the video stream
     while True:
         # if this is a file video stream, then we need to check if
@@ -137,88 +162,91 @@ def main():
         # it, and convert it to grayscale
         # channels)
         frame = vs.read()
-        frame = imutils.resize(frame, width=450)
+        frame = imutils.resize(frame, width=900)
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         
         # detect faces in the grayscale frame
         rects = detector(gray, 0)
-    
-    	# loop over the face detections
+
+        
+        i = 0
+        # loop over the face detections
         for rect in rects:
-    	    # determine the facial landmarks for the face region, then
-    	    # convert the facial landmark (x, y)-coordinates to a NumPy
-    	    # array
-    	    shape = predictor(gray, rect)
-    	    shape = face_utils.shape_to_np(shape)
+
+            # determine the facial landmarks for the face region, then
+            # convert the facial landmark (x, y)-coordinates to a NumPy
+            # array
+            shape = predictor(gray, rect)
+            
+            x = rect.left() 
+            y = rect.top()
+            w = rect.width()
+            h = rect.height()
+
+            
+            if i >=len(rostros):
+                rostros.append(0)
+                eye_closed_time.append(0)
+                frames_with_closed_eyes.append(0)
+            
+            shape = face_utils.shape_to_np(shape)
+
+            # extract the left and right eye coordinates, then use the
+            # coordinates to compute the eye aspect ratio for both eyes
+            leftEye = shape[lStart:lEnd]
+            rightEye = shape[rStart:rEnd]
+            leftEAR = eye_aspect_ratio(leftEye)
+            rightEAR = eye_aspect_ratio(rightEye)
         
-    	    # extract the left and right eye coordinates, then use the
-    	    # coordinates to compute the eye aspect ratio for both eyes
-    	    leftEye = shape[lStart:lEnd]
-    	    rightEye = shape[rStart:rEnd]
-    	    leftEAR = eye_aspect_ratio(leftEye)
-    	    rightEAR = eye_aspect_ratio(rightEye)
+            # average the eye aspect ratio together for both eyes
+            ear = (leftEAR + rightEAR) / 2.0
         
-    	    # average the eye aspect ratio together for both eyes
-    	    ear = (leftEAR + rightEAR) / 2.0
-        
-    	    # compute the convex hull for the left and right eye, then
-    	    # visualize each of the eyes
-    	    leftEyeHull = cv2.convexHull(leftEye)
-    	    rightEyeHull = cv2.convexHull(rightEye)
-    	    cv2.drawContours(frame, [leftEyeHull], -1, (0, 255, 0), 1)
-    	    cv2.drawContours(frame, [rightEyeHull], -1, (0, 255, 0), 1)
+            # compute the convex hull for the left and right eye, then
+            # visualize each of the eyes
+            leftEyeHull = cv2.convexHull(leftEye)
+            rightEyeHull = cv2.convexHull(rightEye)
+            cv2.drawContours(frame, [leftEyeHull], -1, (0, 255, 0), 1)
+            cv2.drawContours(frame, [rightEyeHull], -1, (0, 255, 0), 1)
         
             # check to see if the eye aspect ratio is below the blink
-    	    # # threshold, and if so, increment the blink frame counter
-    	    if leftEAR and rightEAR > EYE_AR_THRESH:
-                # COUNTER += 1
-                if leftEAR - 0.05 < EYE_AR_THRESH and rightEAR > EYE_AR_THRESH - 3.0:
-                    # print("Left Eye Blinked...")
-                    COUNTER_LEFT_EYE += 1
-       
-                elif rightEAR - 0.05 < EYE_AR_THRESH and leftEAR > EYE_AR_THRESH - 3.0:
-                    # print("Right Eye Blinked...")
-                    COUNTER_RIGHT_EYE += 1
-
-                else:
-                    COUNTER += 1
+            # # threshold, and if so, increment the blink frame counter
+            if ear < EYE_AR_THRESH:
+                frames_with_closed_eyes[i]  += 1
         
-    	    # otherwise, the eye aspect ratio is not below the blink
-    	    # threshold
-    	    else:
-    	        # if the eyes were closed for a sufficient number of
-    	        # then increment the total number of blinks
-    	        if COUNTER_LEFT_EYE > EYE_AR_CONSEC_FRAMES:
-                        TOTAL_LEFT += 1
-                        print("{} - olho esquerdo :D".format(COUNTER_LEFT_EYE))
-                        time.sleep(0.1)
-                        
-    	        elif COUNTER_RIGHT_EYE > EYE_AR_CONSEC_FRAMES:
-                        TOTAL_RIGHT += 1
-                        print("{} - olho direito :D".format(COUNTER_RIGHT_EYE))
-                        time.sleep(0.1)
-                        # COUNTER_RIGHT_EYE = 0
-    	        elif COUNTER > EYE_AR_CONSEC_FRAMES:
-                        TOTAL += 1
-                        print("{} - Ambos os olhos estão piscando :D".format(TOTAL))
-                        avancar_pagina(turtle_writer, text, start, stop, step)
-                        time.sleep(0.1)
-                        turtle_writer.screen.setworldcoordinates(-10,-90,450,7.5)
+            # otherwise, the eye aspect ratio is not below the blink
+            # threshold
+            else:
+                # if the eyes were closed for a sufficient number of
+                # then increment the total number of blinks
+                if frames_with_closed_eyes[i] >= EYE_AR_CONSEC_FRAMES:
+                    rostros[i] += 1
+                    eye_closed_time[i] += frames_with_closed_eyes[i] / 30.0
+                    TOTAL += 1
+                    print("{} - Ambos os olhos estão piscando :D".format(TOTAL))
+                    avancar_pagina(turtle_writer, text, start, stop, step)
+                    time.sleep(0.1)
+                    turtle_writer.screen.setworldcoordinates(-10,-90,450,7.5)
 
-    	        # reset the eye frame counter
-    	        COUNTER = 0
-    	        COUNTER_LEFT_EYE = 0
-    	        COUNTER_RIGHT_EYE = 0
+                # reset the eye frame counter
+                frames_with_closed_eyes[i]  = 0
+                COUNTER_LEFT_EYE = 0
+                COUNTER_RIGHT_EYE = 0
+            total_time = time.time() - start_time
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+            cv2.putText(frame, "Blinks:{}".format(rostros[i]), (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
+            estado = analyze_blink_state(rostros[i], total_time, eye_closed_time[i])
+            cv2.putText(frame, estado, (x+w, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
+            # draw the total number of blinks on the frame along with
+            # the computed eye aspect ratio for the frame
+            blink_frequency = (rostros[i] / total_time) * 60
+            cv2.putText(frame, "Blink Count: {}".format(blink_frequency), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            cv2.putText(frame, "Total Time: {}".format(total_time), (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            cv2.putText(frame, "Eye Closed Time: {}".format(eye_closed_time[i]), (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            # cv2.putText(frame, "EAR: {:.2f}".format(ear), (300, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            # cv2.putText(frame, "Right: {:.2f}".format(rightEAR), (300, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            # cv2.putText(frame, "Left: {:.2f}".format(leftEAR), (300, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
             
-    	    # draw the total number of blinks on the frame along with
-    	    # the computed eye aspect ratio for the frame
-    	    cv2.putText(frame, "Blinks: {}".format(TOTAL), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-    	    cv2.putText(frame, "Right: {}".format(TOTAL_RIGHT), (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-    	    cv2.putText(frame, "Left: {}".format(TOTAL_LEFT), (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-    	    cv2.putText(frame, "EAR: {:.2f}".format(ear), (300, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-    	    cv2.putText(frame, "Right: {:.2f}".format(rightEAR), (300, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-    	    cv2.putText(frame, "Left: {:.2f}".format(leftEAR), (300, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-            
+            i = i + 1
 
          
     	# show the frame
